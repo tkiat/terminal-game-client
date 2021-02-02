@@ -16,7 +16,7 @@
 - **Key Bindings**: h (left), j (down), k (up), l (right), CTRL+d (down 20 lines), CTRL+u (up 20 lines), ENTER (perform action).
 - **Configuration File**: You can change game directories and editor in ~/.local/share/terminal-game-client/config.conf.
 - **Record File**: You should restart the application after changing it.
-- **Prefix Command**: Some games does not run without some prefixes like wine64. Enter that in 'Command Prefix' section on the "Games" tab (press e, type command, then press ENTER).
+- **Command**: You might want to add prefix and/or suffix to execute the game, for example, wine64 mygame.sh --debug-mode. On the "Games" page, type p to add a new prefix and type s to add a new suffix.
 
 ### Screenshots
 

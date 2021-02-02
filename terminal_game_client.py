@@ -46,7 +46,7 @@ def play_game_and_record_time(row, cmd):
     '''Execute game and then record playtime thereafter.'''
     start = datetime.now()
     subprocess.Popen(cmd, stderr=subprocess.PIPE, \
-            stdout=subprocess.DEVNULL).wait()
+            stdout=subprocess.DEVNULL, shell=True).wait()
     playtime_sec = math.floor((datetime.now() - start).total_seconds())
     # update playtime
     GAMES[row]['playtime'] = \
@@ -54,11 +54,11 @@ def play_game_and_record_time(row, cmd):
     RECORD_JSON[GAMES[row]['title']] = GAMES[row]['playtime']
     Path(RECORD_PATH).write_text(json.dumps(RECORD_JSON, sort_keys=True, indent=2))
 
-def print_game_entries(window, cmd_game_prefix, row):
+def print_game_entries(window, cmd, row):
     '''Print all games entries.'''
     height, _ = window.getmaxyx()
     offset_x = MAX_PLAYTIME_DIGIT - len('hh:mm:ss')
-    window.addstr(1, 2, 'Command Prefix: ' + cmd_game_prefix)
+    window.addstr(1, 2, 'Command: ' + cmd)
     window.addstr(3, 2 + offset_x, 'Playtime Title')
     linenum = 5
 
@@ -82,13 +82,13 @@ def sec_to_hhmmss(sec):
     hour, minute = divmod(minute, 60)
     return str(hour).zfill(2) + ":" + str(minute).zfill(2) + ":" + str(second).zfill(2)
 
-def set_cmd_game_prefix():
+def set_cmd_prefix_or_suffix():
     '''Enable textbox where user can type prefix command like wine64'''
-    win = curses.newwin(1, 40, 4, 18)
+    win = curses.newwin(1, 40, 4, 11)
     textbox = curses.textpad.Textbox(win)
-    prefix = textbox.edit()
+    text = textbox.edit()
     del win
-    return prefix
+    return text.strip()
 
 def clamp(number, range_min, range_max):
     '''Limit a number to a range.'''
@@ -102,7 +102,8 @@ def main(stdscr):
     col_cur = 0
     row_game_cur = 0
     main_box = draw_main_box(stdscr)
-    cmd_game_prefix = ""
+    cmd_prefix = ""
+    cmd_suffix = ""
     while 1:
         stdscr.keypad(1)
         stdscr.refresh()
@@ -110,7 +111,8 @@ def main(stdscr):
         main_box.clear()
         main_box.border(0)
         if MENU[col_cur] == "Games":
-            print_game_entries(main_box, cmd_game_prefix, row_game_cur)
+            cmd_display = cmd_prefix + " <game> " + cmd_suffix
+            print_game_entries(main_box, cmd_display, row_game_cur)
         elif MENU[col_cur] == "Record" or MENU[col_cur] == "Config" or MENU[col_cur] == "Help":
             main_box.addstr(1, 2, "Press ENTER to open file in " + str(EDITOR) + ".")
         main_box.refresh()
@@ -121,8 +123,8 @@ def main(stdscr):
             break
         if key == 10 and MENU[col_cur] == "Games": # 10 = ENTER
             realpath = os.path.realpath(GAMES[row_game_cur]['path'])
-            command = cmd_game_prefix + realpath
-            play_game_and_record_time(row_game_cur, command)
+            cmd = cmd_prefix + " " + realpath + " " + cmd_suffix
+            play_game_and_record_time(row_game_cur, cmd.strip())
         elif key == 10 and MENU[col_cur] == "Exit":
             break
         elif key == 10:
@@ -134,8 +136,10 @@ def main(stdscr):
             col_cur = clamp(col_cur + COL_VECTOR_MAP[key], 0, len(MENU) - 1)
         elif key in ROW_VECTOR_MAP and GAMES:
             row_game_cur = clamp(row_game_cur + ROW_VECTOR_MAP[key], 0, len(GAMES) - 1)
-        elif key == ord('e'):
-            cmd_game_prefix = set_cmd_game_prefix()
+        elif key == ord('p'):
+            cmd_prefix = set_cmd_prefix_or_suffix()
+        elif key == ord('s'):
+            cmd_suffix = set_cmd_prefix_or_suffix()
 # --------------------------------------------------------------------------------------------------
 # declare paths
 FOLDER_PATH = os.path.expanduser("~") + "/.local/share/terminal-game-client/"
@@ -157,14 +161,19 @@ create_file_if_not_exist(RECORD_PATH, """{}
 create_file_if_not_exist(HELP_PATH, """How to use
 - Add Game: Make a folder entry in the configuration file.
 This folder must contain symlinks to the actual game executables.
+
 - Key Bindings: h (left), j (down), k (up), l (right), CTRL+d (down 20 lines),
 CTRL+u (up 20 lines), ENTER (perform action).
+
 - Configuration File: You can change game directories and editor in
 ~/.local/share/terminal-game-client/config.conf.
 You should restart the application after changing it.
+
 - Record File: You should restart the application after changing it.
-- Command Prefix: Some games does not run without some prefixes like wine64.
-Enter that in 'Command Prefix' section on the "Games" tab (press e, type command, then press ENTER).
+
+- Command: You might want to add prefix and/or suffix to execute the game
+For example, wine64 mygame.sh --debug-mode
+On the "Games" page, type p to add a new prefix, type s to add a new suffix.
 """)
 # read configs
 CONFIG = configparser.ConfigParser()
